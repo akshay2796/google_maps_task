@@ -1,26 +1,190 @@
-import React from 'react';
-import logo from './logo.svg';
+import React, { useState } from 'react';
 import './App.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import {Button, Form, FormGroup, Label, Input} from 'reactstrap';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+import ReactMapGL from 'react-map-gl';
+
+import MapGL, {Marker,Source,Layer} from '@urbica/react-map-gl';
+import { watchFile } from 'fs';
+// const [viewport, setViewport] = useState({
+//   latitude: 18.520430,
+//   longitude: 73.856743,
+//   width: "100vw",
+//   height: "100vh",
+//   zoom: 10
+// });
+
+const accessToken = "&access_token=pk.eyJ1IjoiYWtzaGF5Mjc5NiIsImEiOiJjazFjbGY2emwwNGZpM25scDcwMjNzMXhlIn0.-D54L9tbYqRfBSaXWgJbrA";
+
+
+class MapContainer extends React.Component {
+
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      viewport: {
+        latitude: 18.520430,
+        longitude: 73.856743,
+        zoom: 10,
+      },
+
+      from: '',
+      to: '',
+
+      fromLat: '',
+      fromLng: '',
+
+      toLat: '',
+      toLng: '',
+
+      navigationData: '',
+    }
+  }
+
+
+  setFrom = event => {
+    var fromText = event.target.value;
+    this.setState({from: fromText});
+  };
+
+  setTo = event => {
+    var toText = event.target.value;
+    this.setState({to: toText});
+  };
+
+  setFromLocation = async() => {
+    const fromText = this.state.from;
+    console.log("From: "+fromText);
+    var length = fromText.length;
+      console.log("Length of From: "+length);
+      var fromTextURLEncoded = fromText.replace(" ", "%20");
+      // console.log("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken);
+      fetch("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken)
+      .then((res) => res.json())
+      .then((result) => {
+        console.log("Latitude: "+result.features[0].geometry.coordinates[0]);
+        console.log("Longitude: "+result.features[0].geometry.coordinates[1]);
+
+        this.setState({
+          fromLat: result.features[0].geometry.coordinates[0],
+          fromLng: result.features[0].geometry.coordinates[1]
+        })
+      })
+      .catch((error) => console.error(error));
+
+      return this.state.fromLat+","+this.state.fromLng;
+  }
+
+  setToLocation = async() => {
+    const toText = this.state.to;
+    console.log("To: "+toText);
+    var length = toText.length;
+      console.log("Length of From: "+length);
+      var fromTextURLEncoded = toText.replace(" ", "%20");
+      // console.log("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken);
+      // fetch("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken)
+      // .then((res) => res.json())
+      // .then((result) => {
+      //   console.log("Latitude: "+result.features[0].geometry.coordinates[0]);
+      //   console.log("Longitude: "+result.features[0].geometry.coordinates[1]);
+
+      //   this.setState({
+      //     toLat: result.features[0].geometry.coordinates[0],
+      //     toLng: result.features[0].geometry.coordinates[1]
+      //   })
+      // })
+      // .catch((error) => console.error(error));
+
+      // return this.state.toLat+","+this.state.toLng;
+
+      return await fetch("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken).then((res) => res.json());
+  }
+
+  submit = async() => {
+    const fromData = await this.setFromLocation();
+    const toData = await this.setToLocation();
+
+    const query = fromData.features[0].geometry.coordinates[0]+","+fromData.features[0].geometry.coordinates[1]+";"+toData.features[0].geometry.coordinates[0]+","+toData.features[0].geometry.coordinates[1];
+    console.log(query);
+
+    //this.fetchNavData();
+
+
+
+  }
+
+  fetchNavData = (query) => {
+    //const query = this.state.fromLat+","+this.state.fromLng+";"+this.state.toLat+","+this.state.toLng;
+    const geoJson = 'geometries=geojson';
+    const fullUrl = 'https://api.mapbox.com/directions/v5/mapbox/driving/'+query+".json?"+geoJson+accessToken;
+    fetch(fullUrl)
+    .then((res) => res.json())
+    .then((data) => console.log(data.routes[0].geometry.coordinates))
+    .catch((err) => console.error(err));
+  }
+
+  onDragEnd = lngLat => {
+    this.setState({ fromLng: lngLat.lng, fromLat: lngLat.lat });
+  };
+
+  render() {
+    return(
+      <div className="App d-flex flex-column align-items-center mt-4">
+        <div className="d-flex align-items-center justify-content-center text-center">
+          <Form>
+            <FormGroup>
+                <Input type="text" name="from_location" id="fromInput" placeholder="Enter Starting Point" onChange={this.setFrom} />
+            </FormGroup>
+            <FormGroup>
+                <Input type="text" name="to_location" id="toInput" placeholder="Enter Destination Point" onChange={this.setTo} />
+            </FormGroup>
+            <Button color="primary" className="mx-auto" onClick={this.submit}>Submit</Button>
+          </Form>
+        </div>
+        <MapGL
+          {...this.state.viewport}
+          style={{width:'95%', height: '80%', marginTop: 30}}
+          mapStyle="mapbox://styles/akshay2796/ck1cm1rgs17621cn2l9jd64w5"
+          accessToken={"pk.eyJ1IjoiYWtzaGF5Mjc5NiIsImEiOiJjazFjbGphcGcwbTQyM2Rtd2oxZW9tYWRuIn0.0UVb63pN3wW_LIsQWpECIw"}
+          onViewportChange={(viewport) => this.setState({ viewport })}
         >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+        
+          {this.state.fromLat && this.state.fromLng && 
+              <Marker
+              latitude={this.state.fromLat}
+              longitude={this.state.fromLng}
+              onDragEnd={this.onDragEnd}
+              draggable
+            >
+              <div>This is the starting position.</div>
+            </Marker>
+          }
+
+            <Source id="route" type="geojson" data={"{type: 'Feature',geometry: {type: 'LineString',"+this.state.navigationData+"}};"} />
+              <Layer
+                id="route"
+                type="line"
+                source="route"
+                layout={{
+                  'line-join': 'round',
+                  'line-cap': 'round'
+                }}
+                paint={{
+                  'line-color': '#888',
+                  'line-width': 8
+                }}
+              />
+        </MapGL>
+      </div>
+    );
+  }
 }
 
-export default App;
+
+export default MapContainer;
+
+// export default GoogleApiWrapper({
+//   apiKey: 'AIzaSyBjlS4g9wxxrXb90IJLp_3oVfOfP4LkI1w'
+// })(MapContainer);
