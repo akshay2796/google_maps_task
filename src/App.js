@@ -57,6 +57,7 @@ class MapContainer extends React.Component {
   setFromLocation = async() => {
     const fromText = this.state.from;
     console.log("From: "+fromText);
+    var lat='',lng='';
     var length = fromText.length;
       console.log("Length of From: "+length);
       var fromTextURLEncoded = fromText.replace(" ", "%20");
@@ -64,50 +65,48 @@ class MapContainer extends React.Component {
       fetch("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken)
       .then((res) => res.json())
       .then((result) => {
-        console.log("Latitude: "+result.features[0].geometry.coordinates[0]);
-        console.log("Longitude: "+result.features[0].geometry.coordinates[1]);
+        lat = result.features[0].geometry.coordinates[0];
+        lng = result.features[0].geometry.coordinates[1];
+        console.log("Latitude: "+lat);
+        console.log("Longitude: "+lng);
 
         this.setState({
           fromLat: result.features[0].geometry.coordinates[0],
           fromLng: result.features[0].geometry.coordinates[1]
         })
+
+        
       })
       .catch((error) => console.error(error));
 
-      return this.state.fromLat+","+this.state.fromLng;
+      return lat+","+lng;
   }
 
-  setToLocation = async() => {
-    const toText = this.state.to;
-    console.log("To: "+toText);
-    var length = toText.length;
-      console.log("Length of From: "+length);
-      var fromTextURLEncoded = toText.replace(" ", "%20");
-      // console.log("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken);
-      // fetch("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken)
-      // .then((res) => res.json())
-      // .then((result) => {
-      //   console.log("Latitude: "+result.features[0].geometry.coordinates[0]);
-      //   console.log("Longitude: "+result.features[0].geometry.coordinates[1]);
-
-      //   this.setState({
-      //     toLat: result.features[0].geometry.coordinates[0],
-      //     toLng: result.features[0].geometry.coordinates[1]
-      //   })
-      // })
-      // .catch((error) => console.error(error));
-
-      // return this.state.toLat+","+this.state.toLng;
-
-      return await fetch("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken).then((res) => res.json());
-  }
+  // setToLocation = async() => {
+  //   const toText = this.state.to;
+  //   console.log("To: "+toText);
+  //   var length = toText.length;
+  //     console.log("Length of From: "+length);
+  //     var fromTextURLEncoded = toText.replace(" ", "%20");
+  //     // console.log("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken);
+  //     fetch("https://api.mapbox.com/geocoding/v5/mapbox.places/"+fromTextURLEncoded+".json?"+accessToken)
+  //     .then((res) => res.json())
+  //     .then((result) => {
+  //       const lat = result.features[0].geometry.coordinates[0];
+  //       const lng = result.features[0].geometry.coordinates[1];
+  //       console.log("Latitude: "+lat);
+  //       console.log("Longitude: "+lng);
+  //     })
+  //     .catch((error) => console.error(error));
+  // }
 
   submit = async() => {
+    //var fromData = '', toData='';
     const fromData = await this.setFromLocation();
-    const toData = await this.setToLocation();
+    console.log(fromData);
 
-    const query = fromData.features[0].geometry.coordinates[0]+","+fromData.features[0].geometry.coordinates[1]+";"+toData.features[0].geometry.coordinates[0]+","+toData.features[0].geometry.coordinates[1];
-    console.log(query);
+    //const query = fromData.features[0].geometry.coordinates[0]+","+fromData.features[0].geometry.coordinates[1]+";"+toData.features[0].geometry.coordinates[0]+","+toData.features[0].geometry.coordinates[1];
+    //console.log(fromData+"\n"+toData);
 
     //this.fetchNavData();
 
