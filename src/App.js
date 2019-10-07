@@ -2,11 +2,10 @@ import React, { Component, Fragment } from 'react';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Button, Form, FormGroup, Label, Input } from 'reactstrap';
-
-import ReactMapGL from 'react-map-gl';
+import { MapboxLayer } from '@deck.gl/mapbox';
+import { ArcLayer } from '@deck.gl/layers';
 
 import MapGL, { Marker, Source, Layer } from '@urbica/react-map-gl';
-import axios from 'axios';
 
 const accessToken =
 	'&access_token=pk.eyJ1IjoiYWtzaGF5Mjc5NiIsImEiOiJjazFjbGY2emwwNGZpM25scDcwMjNzMXhlIn0.-D54L9tbYqRfBSaXWgJbrA';
@@ -23,11 +22,14 @@ class MapContainer extends Component {
 			viewport: {
 				latitude: 18.52043,
 				longitude: 73.856743,
-				zoom: 10,
+				zoom: 12,
 			},
 
 			from: '',
 			to: '',
+
+			fromLatLng: '',
+			toLatLng: '',
 
 			fromLat: '',
 			fromLng: '',
@@ -35,6 +37,24 @@ class MapContainer extends Component {
 			toLat: '',
 			toLng: '',
 		};
+
+		const myDeckLayer = new MapboxLayer({
+			id: 'deckgl-arc',
+			type: ArcLayer,
+			data: [
+				{
+					source: Arrays.from(this.state.fromLatLng),
+					target: Arrays.from(this.state.toLatLng),
+				},
+			],
+			getSourcePosition: d => d.source,
+			getTargetPosition: d => d.target,
+			getSourceColor: [255, 208, 0],
+			getTargetColor: [0, 128, 255],
+			getStrokeWidth: 8,
+		});
+
+		console.log(myDeckLayer);
 	}
 
 	setFrom = event => {
@@ -49,33 +69,11 @@ class MapContainer extends Component {
 
 	setFromLocation = async () => {
 		const fromText = this.state.from;
-		console.log('From: ' + fromText);
-		var lat = '',
-			lng = '';
-		var length = fromText.length;
-		console.log('Length of From: ' + length);
-		var fromTextURLEncoded = fromText.replace(' ', '%20');
 		const url =
 			'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
-			fromTextURLEncoded +
+			fromText.replace(' ', '%20') +
 			'.json?' +
 			accessToken;
-		// fetch(
-		// 	'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
-		// 		fromTextURLEncoded +
-		// 		'.json?' +
-		// 		accessToken,
-		// )
-		// 	.then(res => res.json())
-		// 	.then(result => {
-		// 		const lat = result.features[0].geometry.coordinates[0];
-		// 		const lng = result.features[0].geometry.coordinates[1];
-		// 		this.setState({
-		// 			fromLat: lat,
-		// 			fromLng: lng,
-		// 		});
-		// 	})
-		// 	.catch(error => console.log(error));
 
 		return fetch(url)
 			.then(res => res.json())
@@ -83,40 +81,35 @@ class MapContainer extends Component {
 				const lat = result.features[0].geometry.coordinates[0];
 				const lng = result.features[0].geometry.coordinates[1];
 
-				console.log('Latitude: ' + lat);
-				console.log('Longitude: ' + lng);
+				// this.setState({
+				// 	fromLat: lat,
+				// 	fromLng: lng,
+				// });
 
-				this.setState({
-					fromLat: lat,
-					fromLng: lng,
-				});
+				this.setState({ fromLatLng: lat + ',' + lng });
 			});
 	};
 
 	setToLocation = async () => {
 		const toText = this.state.to;
-		console.log('To: ' + toText);
-		var length = toText.length;
-		console.log('Length of From: ' + length);
-		var fromTextURLEncoded = toText.replace(' ', '%20');
 		const url =
 			'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
-			fromTextURLEncoded +
+			toText.replace(' ', '%20') +
 			'.json?' +
 			accessToken;
+
 		return fetch(url)
 			.then(res => res.json())
 			.then(result => {
 				const lat = result.features[0].geometry.coordinates[0];
 				const lng = result.features[0].geometry.coordinates[1];
 
-				console.log('Latitude: ' + lat);
-				console.log('Longitude: ' + lng);
+				// this.setState({
+				// 	toLat: lat,
+				// 	toLng: lng,
+				// });
 
-				this.setState({
-					toLat: lat,
-					toLng: lng,
-				});
+				this.setState({ toLatLng: lat + ',' + lng });
 			});
 	};
 
@@ -126,32 +119,25 @@ class MapContainer extends Component {
 		const fullUrl =
 			'https://api.mapbox.com/directions/v5/mapbox/driving/' +
 			query +
-			'.json?' +
-			geoJson +
+			'.json?geometries=geojson' +
 			accessToken;
+
 		console.log('Navigation URL: ' + fullUrl);
+
 		var navData;
 		await fetch(fullUrl)
 			.then(res => res.json())
 			.then(data => {
 				navData = data.routes[0].geometry.coordinates;
-				// this.setState({
-				// 	navigationData: data.routes[0].geometry.coordinates,
-				// }),
 
 				navData.map((item, key) => {
-					// console.log(key + ':' + item);
 					navArray.push('[' + item + ']');
 				});
-
-				// console.log('NavArray: ' + navArray);
 
 				const jsonUrl =
 					'{"type": "Feature","geometry": {"type": "LineString","coordinates": [' +
 					navArray +
 					']}}';
-
-				// console.log('JSON URL: ' + jsonUrl);
 
 				this.navFullData = JSON.parse(jsonUrl);
 
@@ -169,32 +155,13 @@ class MapContainer extends Component {
 				this.forceUpdate();
 			})
 			.catch(err => console.error(err));
-
-		//console.log(navData);
-		return navFullData;
 	};
 
 	submit = async () => {
-		//var fromData = '', toData='';
-		const fromData = await this.setFromLocation();
-		console.log('Latitude (From): ' + this.state.fromLat);
-		console.log('Longitude (From): ' + this.state.fromLng);
-		const toData = await this.setToLocation();
-		console.log('Latitude (To): ' + this.state.toLat);
-		console.log('Longitude (To): ' + this.state.toLng);
-		const query =
-			this.state.fromLat +
-			',' +
-			this.state.fromLng +
-			';' +
-			this.state.toLat +
-			',' +
-			this.state.toLng;
-		console.log('QUERY: ' + query);
+		await this.setFromLocation();
+		await this.setToLocation();
+		const query = this.state.fromLatLng + ';' + this.state.toLatLng;
 		await this.fetchNavData(query);
-		// const navData = await this.fetchNavData(query);
-		// console.log(navData);
-		//console.log('Nav Data: ' + this.state.navigationData);
 	};
 
 	render() {
@@ -232,7 +199,7 @@ class MapContainer extends Component {
 				<MapGL
 					{...this.state.viewport}
 					style={{ width: '95%', height: '80%', marginTop: 30 }}
-					mapStyle='mapbox://styles/akshay2796/ck1cm1rgs17621cn2l9jd64w5'
+					mapStyle='mapbox://styles/mapbox/light-v9'
 					accessToken={
 						'pk.eyJ1IjoiYWtzaGF5Mjc5NiIsImEiOiJjazFjbGphcGcwbTQyM2Rtd2oxZW9tYWRuIn0.0UVb63pN3wW_LIsQWpECIw'
 					}
