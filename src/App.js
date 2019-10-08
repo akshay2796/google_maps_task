@@ -1,74 +1,42 @@
-import React, { Component, Fragment } from 'react';
+import React, { Component } from 'react';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Button, Form, FormGroup, Label, Input } from 'reactstrap';
-import { MapboxLayer } from '@deck.gl/mapbox';
-import { ArcLayer } from '@deck.gl/layers';
-
-import MapGL, { Marker, Source, Layer } from '@urbica/react-map-gl';
+import { Button, Form, FormGroup, Input } from 'reactstrap';
+import MapGL, { MapContext } from '@urbica/react-map-gl';
 
 const accessToken =
 	'&access_token=pk.eyJ1IjoiYWtzaGF5Mjc5NiIsImEiOiJjazFjbGY2emwwNGZpM25scDcwMjNzMXhlIn0.-D54L9tbYqRfBSaXWgJbrA';
 
-var queryValue = null;
-var navFullData = null;
+var viewport = {
+	width: '100vw',
+	height: '60vh',
+	latitude: 18.52043,
+	longitude: 73.856743,
+	zoom: 12,
+};
+
+var navFullData;
 var navArray = [];
 
-class MapContainer extends Component {
-	constructor(props) {
-		super(props);
+var mapRef;
 
-		this.state = {
-			viewport: {
-				latitude: 18.52043,
-				longitude: 73.856743,
-				zoom: 12,
-			},
+var from, fromLat, fromLng, fromLatLng;
+var to, toLat, toLng, toLatLng;
 
-			from: '',
-			to: '',
-
-			fromLatLng: '',
-			toLatLng: '',
-
-			fromLat: '',
-			fromLng: '',
-
-			toLat: '',
-			toLng: '',
-		};
-
-		const myDeckLayer = new MapboxLayer({
-			id: 'deckgl-arc',
-			type: ArcLayer,
-			data: [
-				{
-					source: Arrays.from(this.state.fromLatLng),
-					target: Arrays.from(this.state.toLatLng),
-				},
-			],
-			getSourcePosition: d => d.source,
-			getTargetPosition: d => d.target,
-			getSourceColor: [255, 208, 0],
-			getTargetColor: [0, 128, 255],
-			getStrokeWidth: 8,
-		});
-
-		console.log(myDeckLayer);
-	}
+export default class MapContainer extends Component {
 
 	setFrom = event => {
 		var fromText = event.target.value;
-		this.setState({ from: fromText });
+		this.from = fromText;
 	};
 
 	setTo = event => {
 		var toText = event.target.value;
-		this.setState({ to: toText });
+		this.to = toText;
 	};
 
 	setFromLocation = async () => {
-		const fromText = this.state.from;
+		const fromText = this.from;
 		const url =
 			'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
 			fromText.replace(' ', '%20') +
@@ -81,17 +49,15 @@ class MapContainer extends Component {
 				const lat = result.features[0].geometry.coordinates[0];
 				const lng = result.features[0].geometry.coordinates[1];
 
-				// this.setState({
-				// 	fromLat: lat,
-				// 	fromLng: lng,
-				// });
+				this.fromLat = lat;
+				this.fromLng = lng;
 
-				this.setState({ fromLatLng: lat + ',' + lng });
+				this.fromLatLng = lat+","+lng;
 			});
 	};
 
 	setToLocation = async () => {
-		const toText = this.state.to;
+		const toText = this.to;
 		const url =
 			'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
 			toText.replace(' ', '%20') +
@@ -104,25 +70,19 @@ class MapContainer extends Component {
 				const lat = result.features[0].geometry.coordinates[0];
 				const lng = result.features[0].geometry.coordinates[1];
 
-				// this.setState({
-				// 	toLat: lat,
-				// 	toLng: lng,
-				// });
+				this.toLat = lat;
+				this.toLng = lng;
 
-				this.setState({ toLatLng: lat + ',' + lng });
+				this.toLatLng = lat+","+lng;
 			});
 	};
 
 	fetchNavData = async query => {
-		//const query = this.state.fromLat+","+this.state.fromLng+";"+this.state.toLat+","+this.state.toLng;
-		const geoJson = 'geometries=geojson';
 		const fullUrl =
 			'https://api.mapbox.com/directions/v5/mapbox/driving/' +
 			query +
 			'.json?geometries=geojson' +
 			accessToken;
-
-		console.log('Navigation URL: ' + fullUrl);
 
 		var navData;
 		await fetch(fullUrl)
@@ -130,6 +90,7 @@ class MapContainer extends Component {
 			.then(data => {
 				navData = data.routes[0].geometry.coordinates;
 
+				navArray = [];
 				navData.map((item, key) => {
 					navArray.push('[' + item + ']');
 				});
@@ -139,30 +100,93 @@ class MapContainer extends Component {
 					navArray +
 					']}}';
 
-				this.navFullData = JSON.parse(jsonUrl);
+				navFullData = JSON.parse(jsonUrl);
 
-				console.log('JSON DATA: ' + JSON.stringify(this.navFullData));
-
-				// this.setState(prevState => {
-				// 	return {
-				// 		viewport: {
-				// 			...prevState.viewport,
-				// 			zoom: 12,
-				// 		},
-				// 	};
-				// });
-
-				this.forceUpdate();
+				
 			})
-			.catch(err => console.error(err));
+			.catch(err => {
+				console.error(err);
+				alert('Unable to find Location!')
+				console.log(viewport);
+				mapRef.reload();
+			});
 	};
 
 	submit = async () => {
 		await this.setFromLocation();
 		await this.setToLocation();
-		const query = this.state.fromLatLng + ';' + this.state.toLatLng;
+		const query = this.fromLatLng + ';' + this.toLatLng;
 		await this.fetchNavData(query);
+
+		//await this.postLocationData(from, to);
+
+		this.mapRemoveLayer();
+
+		this.mapAddLayer();
 	};
+
+	mapRemoveLayer = () => {
+		try {
+			navArray = [];
+			if(mapRef.getSource('route')) {
+				mapRef.removeLayer('route');
+				mapRef.removeSource('route');
+			}
+		}
+		catch(err) {
+			console.log(err);
+		}
+	}
+	
+
+	mapAddLayer = () => {
+		if(mapRef.getSource('route')) {
+			mapRef.removeLayer('route');
+			mapRef.removeSource('route');
+		}
+
+		mapRef.addSource('route', {
+			type: 'geojson',
+			data: navFullData
+		});
+
+		mapRef.addLayer({
+			id: 'route',
+			source: 'route',
+			type: 'line',
+			paint: {
+				'line-color': '#336666',
+				'line-width': 6,
+			}
+		});
+
+		mapRef.flyTo({
+			center: [(this.fromLat+this.toLat) / 2 , (this.fromLng + this.toLng) / 2 ],
+			zoom: 12,
+			duration: 4000
+		})
+	}
+
+	getRandomInt = (max) => {
+		return Math.floor(Math.random() * Math.floor(max));
+	  }
+
+	postLocationData = async (from, to) => {
+		const data = {
+			from_location: from,
+			to_location: to
+		}
+		fetch('http://127.0.0.1:8000/api/map-data/' , {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			  },
+			body: JSON.stringify(data)
+		})
+		.then((res) => console.log(res))
+		.catch((error) => console.error(error));
+	}
+
 
 	render() {
 		return (
@@ -187,54 +211,40 @@ class MapContainer extends Component {
 								onChange={this.setTo}
 							/>
 						</FormGroup>
+						<div>
 						<Button
 							color='primary'
-							className='mx-auto'
+							className='mr-3'
 							onClick={this.submit}
 						>
 							Submit
 						</Button>
+						<Button
+							color='primary'
+							className='mx-auto'
+							onClick={this.mapRemoveLayer}
+						>
+							Clear
+						</Button>
+						</div>
 					</Form>
 				</div>
 				<MapGL
-					{...this.state.viewport}
+					{...viewport}
 					style={{ width: '95%', height: '80%', marginTop: 30 }}
 					mapStyle='mapbox://styles/mapbox/light-v9'
 					accessToken={
 						'pk.eyJ1IjoiYWtzaGF5Mjc5NiIsImEiOiJjazFjbGphcGcwbTQyM2Rtd2oxZW9tYWRuIn0.0UVb63pN3wW_LIsQWpECIw'
 					}
-					onViewportChange={viewport => this.setState({ viewport })}
-				>
-					{this.navFullData && (
-						<Fragment>
-							<Source
-								id='route'
-								type='geojson'
-								data={this.navFullData}
-							/>
-							<Layer
-								id='route'
-								type='line'
-								source='route'
-								layout={{
-									'line-join': 'round',
-									'line-cap': 'round',
-								}}
-								paint={{
-									'line-color': '#336666',
-									'line-width': 6,
-								}}
-							/>
-						</Fragment>
-					)}
-				</MapGL>
+					onViewportChange={viewport => {
+						this.viewport = viewport;
+					}}
+            	>
+                    <MapContext.Consumer>
+                        {(map) => {mapRef = map;}}
+                    </MapContext.Consumer>
+            	</MapGL>
 			</div>
 		);
 	}
 }
-
-export default MapContainer;
-
-// export default GoogleApiWrapper({
-//   apiKey: 'AIzaSyBjlS4g9wxxrXb90IJLp_3oVfOfP4LkI1w'
-// })(MapContainer);
