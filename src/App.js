@@ -24,7 +24,6 @@ var from, fromLat, fromLng, fromLatLng;
 var to, toLat, toLng, toLatLng;
 
 export default class MapContainer extends Component {
-
 	setFrom = event => {
 		var fromText = event.target.value;
 		this.from = fromText;
@@ -52,7 +51,7 @@ export default class MapContainer extends Component {
 				this.fromLat = lat;
 				this.fromLng = lng;
 
-				this.fromLatLng = lat+","+lng;
+				this.fromLatLng = lat + ',' + lng;
 			});
 	};
 
@@ -73,7 +72,7 @@ export default class MapContainer extends Component {
 				this.toLat = lat;
 				this.toLng = lng;
 
-				this.toLatLng = lat+","+lng;
+				this.toLatLng = lat + ',' + lng;
 			});
 	};
 
@@ -101,12 +100,10 @@ export default class MapContainer extends Component {
 					']}}';
 
 				navFullData = JSON.parse(jsonUrl);
-
-				
 			})
 			.catch(err => {
 				console.error(err);
-				alert('Unable to find Location!')
+				alert('Unable to find Location!');
 				console.log(viewport);
 				mapRef.reload();
 			});
@@ -118,7 +115,7 @@ export default class MapContainer extends Component {
 		const query = this.fromLatLng + ';' + this.toLatLng;
 		await this.fetchNavData(query);
 
-		await this.postLocationData(this.from, this.to);
+		//await this.postLocationData(this.from, this.to);
 
 		this.mapRemoveLayer();
 
@@ -128,26 +125,24 @@ export default class MapContainer extends Component {
 	mapRemoveLayer = () => {
 		try {
 			navArray = [];
-			if(mapRef.getSource('route')) {
+			if (mapRef.getSource('route')) {
 				mapRef.removeLayer('route');
 				mapRef.removeSource('route');
 			}
-		}
-		catch(err) {
+		} catch (err) {
 			console.log(err);
 		}
-	}
-	
+	};
 
 	mapAddLayer = () => {
-		if(mapRef.getSource('route')) {
+		if (mapRef.getSource('route')) {
 			mapRef.removeLayer('route');
 			mapRef.removeSource('route');
 		}
 
 		mapRef.addSource('route', {
 			type: 'geojson',
-			data: navFullData
+			data: navFullData,
 		});
 
 		mapRef.addLayer({
@@ -157,36 +152,34 @@ export default class MapContainer extends Component {
 			paint: {
 				'line-color': '#336666',
 				'line-width': 6,
-			}
+			},
 		});
 
-		mapRef.flyTo({
-			center: [(this.fromLat+this.toLat) / 2 , (this.fromLng + this.toLng) / 2 ],
-			zoom: 12,
-			duration: 4000
-		})
-	}
+		var bbox = [[this.fromLat, this.fromLng], [this.toLat, this.toLng]];
+		mapRef.fitBounds(bbox, {
+			padding: { top: 100, bottom: 100, left: 100, right: 100 },
+		});
+	};
 
-	getRandomInt = (max) => {
+	getRandomInt = max => {
 		return Math.floor(Math.random() * Math.floor(max));
-	  }
+	};
 
 	postLocationData = async (from, to) => {
 		const data = {
 			from_location: from,
-			to_location: to
-		}
-		fetch('http://127.0.0.1:8000/api/map-data/' , {
+			to_location: to,
+		};
+		fetch('http://127.0.0.1:8000/api/map-data/', {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/json'
-			  },
-			body: JSON.stringify(data)
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(data),
 		})
-		.then((res) => console.log(res))
-		.catch((error) => console.error(error));
-	}
-
+			.then(res => console.log(res))
+			.catch(error => console.error(error));
+	};
 
 	render() {
 		return (
@@ -212,38 +205,41 @@ export default class MapContainer extends Component {
 							/>
 						</FormGroup>
 						<div>
-						<Button
-							color='primary'
-							className='mr-3'
-							onClick={this.submit}
-						>
-							Submit
-						</Button>
-						<Button
-							color='primary'
-							className='mx-auto'
-							onClick={this.mapRemoveLayer}
-						>
-							Clear
-						</Button>
+							<Button
+								color='primary'
+								className='mr-3'
+								onClick={this.submit}
+							>
+								Submit
+							</Button>
+							<Button
+								color='primary'
+								className='mx-auto'
+								onClick={this.mapRemoveLayer}
+							>
+								Clear
+							</Button>
 						</div>
 					</Form>
 				</div>
 				<MapGL
 					{...viewport}
 					style={{ width: '95%', height: '80%', marginTop: 30 }}
-					mapStyle='mapbox://styles/mapbox/light-v9'
+					// mapStyle='mapbox://styles/mapbox/light-v9'
+					mapStyle='mapbox://styles/mapbox/streets-v11'
 					accessToken={
 						'pk.eyJ1IjoiYWtzaGF5Mjc5NiIsImEiOiJjazFjbGphcGcwbTQyM2Rtd2oxZW9tYWRuIn0.0UVb63pN3wW_LIsQWpECIw'
 					}
 					onViewportChange={viewport => {
 						this.viewport = viewport;
 					}}
-            	>
-                    <MapContext.Consumer>
-                        {(map) => {mapRef = map;}}
-                    </MapContext.Consumer>
-            	</MapGL>
+				>
+					<MapContext.Consumer>
+						{map => {
+							mapRef = map;
+						}}
+					</MapContext.Consumer>
+				</MapGL>
 			</div>
 		);
 	}
