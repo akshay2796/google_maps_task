@@ -1,8 +1,10 @@
-import React, { Component } from 'react';
-import './App.css';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { Component, Fragment } from 'react';
 import { Button, Form, FormGroup, Input } from 'reactstrap';
-import MapGL, { MapContext } from '@urbica/react-map-gl';
+import MapGL, { MapContext, Marker } from '@urbica/react-map-gl';
+
+//CSS
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 const accessToken =
 	'&access_token=pk.eyJ1IjoiYWtzaGF5Mjc5NiIsImEiOiJjazFjbGY2emwwNGZpM25scDcwMjNzMXhlIn0.-D54L9tbYqRfBSaXWgJbrA';
@@ -15,8 +17,16 @@ var viewport = {
 	zoom: 12,
 };
 
+const markerStyle = {
+	padding: '10px',
+	color: '#fff',
+	cursor: 'pointer',
+	background: '#1978c8',
+	borderRadius: '6px'
+  };
+  
+
 var navFullData;
-var navArray = [];
 
 var mapRef;
 
@@ -89,7 +99,7 @@ export default class MapContainer extends Component {
 			.then(data => {
 				navData = data.routes[0].geometry.coordinates;
 
-				navArray = [];
+				var navArray = [];
 				navData.map((item, key) => {
 					navArray.push('[' + item + ']');
 				});
@@ -104,8 +114,6 @@ export default class MapContainer extends Component {
 			.catch(err => {
 				console.error(err);
 				alert('Unable to find Location!');
-				console.log(viewport);
-				mapRef.reload();
 			});
 	};
 
@@ -124,7 +132,6 @@ export default class MapContainer extends Component {
 
 	mapRemoveLayer = () => {
 		try {
-			navArray = [];
 			if (mapRef.getSource('route')) {
 				mapRef.removeLayer('route');
 				mapRef.removeSource('route');
@@ -161,10 +168,6 @@ export default class MapContainer extends Component {
 		});
 	};
 
-	getRandomInt = max => {
-		return Math.floor(Math.random() * Math.floor(max));
-	};
-
 	postLocationData = async (from, to) => {
 		const data = {
 			from_location: from,
@@ -183,8 +186,8 @@ export default class MapContainer extends Component {
 
 	render() {
 		return (
-			<div className='App d-flex flex-column align-items-center mt-4'>
-				<div className='d-flex align-items-center justify-content-center text-center'>
+			<div className='d-flex flex-column align-items-center'>
+				<div className='text-center mt-4 mb-4'>
 					<Form>
 						<FormGroup>
 							<Input
@@ -207,14 +210,13 @@ export default class MapContainer extends Component {
 						<div>
 							<Button
 								color='primary'
-								className='mr-3'
+								className="mr-3"
 								onClick={this.submit}
 							>
 								Submit
 							</Button>
 							<Button
 								color='primary'
-								className='mx-auto'
 								onClick={this.mapRemoveLayer}
 							>
 								Clear
@@ -224,7 +226,7 @@ export default class MapContainer extends Component {
 				</div>
 				<MapGL
 					{...viewport}
-					style={{ width: '95%', height: '80%', marginTop: 30 }}
+					style={{width: '98vw', height: '82vh'}}
 					// mapStyle='mapbox://styles/mapbox/light-v9'
 					mapStyle='mapbox://styles/mapbox/streets-v11'
 					accessToken={
@@ -233,12 +235,23 @@ export default class MapContainer extends Component {
 					onViewportChange={viewport => {
 						this.viewport = viewport;
 					}}
+					children={this.props.children}
 				>
 					<MapContext.Consumer>
 						{map => {
 							mapRef = map;
 						}}
 					</MapContext.Consumer>
+
+					{this.navFullData &&
+					<Fragment>
+						<Marker
+							coordinates={[this.fromLat, this.fromLng]}
+							draggable
+						>
+							<div style={markerStyle}>Hi There!</div>
+						</Marker>
+					</Fragment>}
 				</MapGL>
 			</div>
 		);
