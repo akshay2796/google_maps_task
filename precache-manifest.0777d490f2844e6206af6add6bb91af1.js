@@ -1,6 +1,6 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "8767a2843ce3dca6c2a1401a3a8e1050",
+    "revision": "7fe7447927e050614ae7ac836a8b772f",
     "url": "/Mapbox-ReactJS-API/index.html"
   },
   {
